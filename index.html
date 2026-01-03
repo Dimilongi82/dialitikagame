@@ -1,54 +1,166 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Η Περιπέτεια των Διαλυτικών — Solo</title>
+  <style>
+    :root{
+      --bg:#f3e7c9;
+      --panel:#ffffff;
+      --ink:#111;
+      --muted:#555;
+      --blue:#3b82f6;
+      --green:#22c55e;
+      --red:#ef4444;
+      --gold:#f59e0b;
+      --shadow: 0 10px 30px rgba(0,0,0,.12);
+      --radius: 18px;
+      --cell: 48px;
+      --gap: 8px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+    header{padding:18px 16px 0;max-width:1200px;margin:0 auto}
+    .wrap{max-width:1200px;margin:0 auto;padding:12px 16px 30px;display:grid;grid-template-columns:1fr 360px;gap:16px;align-items:start}
+    @media (max-width: 980px){.wrap{grid-template-columns:1fr}}
+    .card{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
+    h1{margin:8px 0 6px;font-size:clamp(22px,3vw,34px)}
+    .subtitle{margin:0 0 12px;color:var(--muted);font-size:14px;line-height:1.35}
+
+    .board{
+      display:grid;
+      grid-template-columns: repeat(10, var(--cell));
+      gap: var(--gap);
+      justify-content:center;
+      padding: 10px 6px 14px;
+      user-select:none;
+    }
+    @media (max-width: 460px){:root{--cell:42px;--gap:7px}}
+
+    .cell{
+      width:var(--cell);height:var(--cell);
+      border-radius:999px;border:3px solid #222;
+      display:flex;align-items:center;justify-content:center;
+      font-weight:800;background:#fff;position:relative;
+      font-size: 12px;
+    }
+    .cell.blue{border-color:var(--blue)}
+    .cell.green{border-color:var(--green)}
+    .cell.red{border-color:var(--red)}
+    .cell.gold{border-color:var(--gold)}
+
+    .pawn{
+      position:absolute;width:16px;height:16px;border-radius:50%;
+      background:#111;left:6px;bottom:6px;
+      box-shadow:0 4px 10px rgba(0,0,0,.25);
+      border:2px solid rgba(255,255,255,.7);
+    }
+
+    .side h2{margin:6px 0 10px;font-size:18px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .btn{appearance:none;border:0;background:#111;color:#fff;padding:10px 12px;border-radius:999px;font-weight:800;cursor:pointer}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .btn.alt{background:#fff;color:#111;border:1px solid #ddd}
+    .pill{padding:8px 10px;border-radius:999px;background:#fafafa;border:1px solid #e8e8e8;font-weight:800}
+    .log{margin-top:12px;padding:10px;border-radius:14px;background:#fafafa;border:1px solid #eee;height:240px;overflow:auto;font-size:13px}
+    .log p{margin:0 0 8px;line-height:1.35}
+
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:18px;z-index:50}
+    .overlay.show{display:flex}
+    .modal{width:min(760px,100%);background:#fff;border-radius:22px;box-shadow:var(--shadow);padding:16px}
+    .modal h3{margin:6px 0 8px;font-size:20px}
+    .modal .muted{color:var(--muted);font-size:13px;margin:0 0 10px;line-height:1.35}
+    .choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+    @media (max-width: 520px){.choices{grid-template-columns:1fr}}
+    .choice{
+      border:3px solid #111;background:#fff;padding:16px;border-radius:18px;cursor:pointer;
+      font-weight:1000;text-align:center;font-size:22px;letter-spacing:.2px;
+      box-shadow:0 10px 20px rgba(0,0,0,.10);
+      transition: transform .12s ease, background .12s ease;
+    }
+    .choice:hover{background:#f7f7f7;transform:translateY(-2px)}
+    .choice:disabled{opacity:.7;transform:none;cursor:not-allowed}
+    .rulebox{margin-top:12px;padding:12px;border-radius:16px;background:#fff7ed;border:1px solid #fed7aa;display:none}
+    .rulebox.show{display:block}
+    .timer{display:inline-flex;gap:8px;align-items:center;font-weight:900;padding:6px 10px;border-radius:999px;background:#ffe4e6;border:1px solid #fecdd3;margin-left:8px}
+  </style>
+</head>
+<body>
+<header>
+  <h1>Η Περιπέτεια των Διαλυτικών (Solo)</h1>
+  <p class="subtitle">Ρίξε το ζάρι, προχώρα και διάλεξε τη σωστή γραφή. Η εξήγηση μένει 8’’ στην οθόνη.</p>
+</header>
+
+<main class="wrap">
+  <section class="card">
+    <div class="board" id="board"></div>
+    <p class="subtitle" style="margin:0;text-align:center">
+      Χρώματα: 🟦 Επίπεδο 1 · 🟩 Επίπεδο 2 · 🟨 Boss · 🟥 Τελικό (5’’ timer).
+    </p>
+  </section>
+
+  <aside class="card side">
+    <h2>Πίνακας Ελέγχου</h2>
+
+    <div class="row" style="margin-bottom:10px;">
+      <span class="pill">Θέση: <span id="posText">1</span></span>
+      <span class="pill">Ζάρι: <span id="diceText">—</span></span>
+    </div>
+
+    <div class="row" style="margin-bottom:10px;">
+      <button class="btn" id="rollBtn">Ρίξε το ζάρι 🎲</button>
+      <button class="btn alt" id="resetBtn">Επανεκκίνηση</button>
+    </div>
+
+    <div class="log" id="log" aria-live="polite"></div>
+
+    <p class="subtitle" style="margin-top:10px;">
+      Κανόνες κίνησης: 🟦 σωστό +1 · 🟩 σωστό +2 · 🟨 σωστό +3 · 🟥 σωστό +4, λάθος/timeout −3.
+      Μετά το bonus/ποινή ΔΕΝ ανοίγει δεύτερη δοκιμασία.
+    </p>
+  </aside>
+</main>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <h3 id="modalTitle">Δοκιμασία</h3>
+    <p class="muted" id="modalDesc"></p>
+
+    <div id="timerWrap" style="display:none;">
+      <span class="timer">⏱️ <span id="timerNum">5</span>s</span>
+      <span class="muted">Διάλεξε γρήγορα!</span>
+    </div>
+
+    <div class="card" style="padding:12px;border-radius:16px;box-shadow:none;border:1px solid #eee;">
+      <div style="font-size:20px;font-weight:900;text-align:center;" id="questionText"></div>
+    </div>
+
+    <div class="choices" id="choices"></div>
+    <div class="rulebox" id="rulebox"></div>
+
+    <!-- κρατάμε το closeBtn για συμβατότητα με ids, αλλά κρυφό -->
+    <button id="closeBtn" style="display:none;"></button>
+  </div>
+</div>
+
 <script>
-(() => {
+document.addEventListener('DOMContentLoaded', () => {
   const N = 100;
 
-  // ✅ Inject CSS (χωρίς να ψάχνεις το <style>)
-  const injectedCSS = `
-    .choice{
-      border:3px solid #111 !important;
-      background:#fff !important;
-      padding:16px !important;
-      border-radius:18px !important;
-      cursor:pointer !important;
-      font-weight:1000 !important;
-      text-align:center !important;
-      font-size:22px !important;
-      letter-spacing:.2px !important;
-      box-shadow:0 10px 20px rgba(0,0,0,.10) !important;
-      transition: transform .12s ease, background .12s ease !important;
-    }
-    .choice:hover{
-      background:#f7f7f7 !important;
-      transform: translateY(-2px) !important;
-    }
-    .choice:disabled{
-      opacity:.7 !important;
-      transform:none !important;
-      cursor:not-allowed !important;
-    }
-  `;
-  try{
-    const styleEl = document.createElement('style');
-    styleEl.textContent = injectedCSS;
-    document.head.appendChild(styleEl);
-  }catch(e){ /* ignore */ }
+  const FEEDBACK_MS = 8000;
+  const TRAP_SECONDS = 5;
 
-  // ====== ΡΥΘΜΙΣΕΙΣ ΠΑΙΧΝΙΔΙΟΥ ======
-  const FEEDBACK_MS = 8000;     // 8" μένει η απάντηση + κανόνας
-  const TRAP_SECONDS = 5;       // κόκκινο χρονόμετρο 5"
-
-  // Θέσεις ανά επίπεδο (10 μπλε, 8 πράσινα, 4 κίτρινα, 6 κόκκινα)
-  const BLUE_POS  = [4,8,12,16,20,24,28,32,36,40];                 // 10
-  const GREEN_POS = [45,48,52,56,60,64,68,72];                     // 8
-  const GOLD_POS  = [76,82,88,94];                                 // 4
-  const RED_POS   = [81,85,89,91,95,98];                           // 6  (timer)
+  const BLUE_POS  = [4,8,12,16,20,24,28,32,36,40];
+  const GREEN_POS = [45,48,52,56,60,64,68,72];
+  const GOLD_POS  = [76,82,88,94];
+  const RED_POS   = [81,85,89,91,95,98];
 
   const BLUE  = new Set(BLUE_POS);
   const GREEN = new Set(GREEN_POS);
   const GOLD  = new Set(GOLD_POS);
   const RED   = new Set(RED_POS);
 
-  // ====== ΚΑΝΟΝΕΣ (ΤΡΙΑΝΤΑΦΥΛΛΙΔΗΣ) ======
   const ruleBase =
     'Σύμφωνα με τη Γραμματική Τριανταφυλλίδη: Τα διαλυτικά σημειώνονται πάνω από το ι ή υ για να δείξουμε ότι προφέρονται χωριστά από το προηγούμενο φωνήεν (α, ε, ο, υ).';
   const ruleTone =
@@ -58,8 +170,6 @@
   const ruleBoth =
     'Σύμφωνα με τη Γραμματική Τριανταφυλλίδη: Όταν χρειάζεται και χωριστή προφορά και τονισμός, γράφουμε διαλυτικά με τόνο (π.χ. φαΐ, ευφυΐα, Ταΰγετος, καΐκι).';
 
-  // ====== ΛΙΣΤΕΣ (2 επιλογές: διάλεξε σωστή γραφή) ======
-  // item: { a, b, correct: 'a'|'b', rule }
   const bankBlue = [
     { a:'χαϊδεύω', b:'χαιδεύω', correct:'a', rule:ruleBase },
     { a:'θεϊκός', b:'θεικός', correct:'a', rule:ruleBase },
@@ -100,7 +210,6 @@
     { a:'διαϋγής', b:'διαυγής', correct:'a', rule:ruleBase },
   ];
 
-  // “Μη επανάληψη” στην παρτίδα
   const remaining = {
     blue: [...bankBlue.keys()],
     green: [...bankGreen.keys()],
@@ -115,14 +224,12 @@
     return remaining[kind].splice(i,1)[0];
   };
 
-  // ====== STATE ======
   const player = { pos: 1 };
   let animating = false;
   let trapTimer = null;
   let feedbackTimer = null;
-  let active = null; // { kind, item, answered }
+  let active = null;
 
-  // ====== DOM (αν λείπει κάτι, σταματάμε για να μη "σκάσει" σιωπηλά) ======
   const boardEl = document.getElementById('board');
   const rollBtn = document.getElementById('rollBtn');
   const resetBtn = document.getElementById('resetBtn');
@@ -136,24 +243,9 @@
   const questionText = document.getElementById('questionText');
   const choicesEl = document.getElementById('choices');
   const rulebox = document.getElementById('rulebox');
-  const closeBtn = document.getElementById('closeBtn');
   const timerWrap = document.getElementById('timerWrap');
   const timerNum = document.getElementById('timerNum');
 
-  const required = [boardEl, rollBtn, resetBtn, diceText, posText, logEl, overlay, modalTitle, modalDesc, questionText, choicesEl, rulebox, timerWrap, timerNum];
-  if(required.some(x => !x)){
-    // Αν δεν υπάρχουν τα ids στο HTML, δεν θα εμφανιστεί τίποτα.
-    console.error('Λείπουν βασικά στοιχεία HTML (ids). Έλεγξε ότι υπάρχουν: board, rollBtn, resetBtn, diceText, posText, log, overlay, modalTitle, modalDesc, questionText, choices, rulebox, timerWrap, timerNum.');
-    return;
-  }
-
-  // δεν θέλουμε χειροκίνητο κλείσιμο (για να μένει 8")
-  if(closeBtn){
-    closeBtn.style.display = 'none';
-    closeBtn.onclick = null;
-  }
-
-  // ====== BOARD ======
   const cells = new Map();
   boardEl.innerHTML = '';
   for(let i=1;i<=N;i++){
@@ -188,22 +280,12 @@
     logEl.scrollTop = logEl.scrollHeight;
   }
 
-  function clampPos(x){
-    if(x < 1) return 1;
-    if(x > N) return N;
-    return x;
-  }
-
+  function clampPos(x){ return Math.min(N, Math.max(1, x)); }
   const sleep = (ms) => new Promise(r=>setTimeout(r,ms));
 
-  function stopTrapTimer(){
-    if(trapTimer){ clearInterval(trapTimer); trapTimer=null; }
-  }
-  function stopFeedbackTimer(){
-    if(feedbackTimer){ clearTimeout(feedbackTimer); feedbackTimer=null; }
-  }
+  function stopTrapTimer(){ if(trapTimer){ clearInterval(trapTimer); trapTimer=null; } }
+  function stopFeedbackTimer(){ if(feedbackTimer){ clearTimeout(feedbackTimer); feedbackTimer=null; } }
 
-  // ✅ triggerChallenge=false => ΔΕΝ ανοίγει δεύτερη δοκιμασία μετά από bonus/ποινή
   async function moveBy(steps, triggerChallenge = true){
     animating = true;
     rollBtn.disabled = true;
@@ -228,7 +310,6 @@
 
     if(!triggerChallenge) return;
 
-    // Trigger challenge after landing (μόνο από ζάρι)
     if(BLUE.has(player.pos)) return openChallenge('blue');
     if(GREEN.has(player.pos)) return openChallenge('green');
     if(GOLD.has(player.pos)) return openChallenge('gold');
@@ -257,17 +338,16 @@
       kind==='blue'  ? '🟦 Επίπεδο 1: Εύκολο' :
       kind==='green' ? '🟩 Επίπεδο 2: Μεσαίο' :
       kind==='gold'  ? '🟨 Boss Level' :
-      '🟥 Τελικό Επίπεδο (με χρονόμετρο)';
+      '🟥 Τελικό Επίπεδο (5’’)';
 
     modalDesc.textContent =
-      kind==='blue'  ? 'Διάλεξε τη σωστή γραφή. Αν είναι σωστό: +1 θέση.' :
-      kind==='green' ? 'Διάλεξε τη σωστή γραφή. Αν είναι σωστό: +2 θέσεις.' :
-      kind==='gold'  ? 'Διάλεξε τη σωστή γραφή. Αν είναι σωστό: +3 θέσεις.' :
-      'Διάλεξε γρήγορα (5"). Αν είναι σωστό: +4. Αν είναι λάθος ή αργήσεις: −3.';
+      kind==='blue'  ? 'Σωστό: +1' :
+      kind==='green' ? 'Σωστό: +2' :
+      kind==='gold'  ? 'Σωστό: +3' :
+      'Σωστό: +4 | Λάθος/Timeout: −3';
 
     questionText.textContent = 'Διάλεξε τη σωστή γραφή:';
 
-    // 2 επιλογές
     choicesEl.innerHTML = '';
     const btnA = document.createElement('button');
     btnA.className = 'choice';
@@ -332,19 +412,18 @@
 
       const kind = active.kind;
 
-      if(kind==='blue' && correct){ log('✅ Σωστό (🟦) → +1'); await moveBy(+1, false); return; }
-      if(kind==='green' && correct){ log('✅ Σωστό (🟩) → +2'); await moveBy(+2, false); return; }
-      if(kind==='gold' && correct){ log('✅ Σωστό (🟨) → +3'); await moveBy(+3, false); return; }
+      if(kind==='blue' && correct){ log('✅ 🟦 +1'); await moveBy(+1, false); return; }
+      if(kind==='green' && correct){ log('✅ 🟩 +2'); await moveBy(+2, false); return; }
+      if(kind==='gold' && correct){ log('✅ 🟨 +3'); await moveBy(+3, false); return; }
 
       if(kind==='red'){
-        if(correct){ log('✅ Σωστό (🟥) → +4'); await moveBy(+4, false); return; }
-        log(timeout ? '⏱️ Timeout (🟥) → −3' : '❌ Λάθος (🟥) → −3');
+        if(correct){ log('✅ 🟥 +4'); await moveBy(+4, false); return; }
+        log(timeout ? '⏱️ 🟥 −3' : '❌ 🟥 −3');
         await moveBy(-3, false);
         return;
       }
 
-      // λάθος σε μπλε/πράσινο/κίτρινο => 0
-      log(kind==='blue' ? '❌ Λάθος (🟦) → 0' : kind==='green' ? '❌ Λάθος (🟩) → 0' : '❌ Λάθος (🟨) → 0');
+      log('❌ 0');
     }, FEEDBACK_MS);
   }
 
@@ -367,7 +446,7 @@
     const roll = 1 + Math.floor(Math.random()*6);
     diceText.textContent = String(roll);
     log(`🎲 Έριξες: ${roll}`);
-    await moveBy(roll, true); // ✅ μόνο εδώ ανοίγει δοκιμασία
+    await moveBy(roll, true);
   };
 
   resetBtn.onclick = () => {
@@ -389,8 +468,10 @@
     log('🔄 Νέα παρτίδα!');
   };
 
-  // init
   renderPawn();
   log('🎮 Έτοιμο! Πάτα "Ρίξε το ζάρι".');
-})();
+});
 </script>
+
+</body>
+</html>
