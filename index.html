@@ -232,6 +232,38 @@ const RED_POS   = [69,74,79,84,89,94];
   let trapTimer = null;
   let feedbackTimer = null;
   let active = null;
+  // ⏱️ Χρονόμετρο παρτίδας
+let gameStartMs = null;
+let gameTimer = null;
+
+function fmtTime(ms){
+  const total = Math.floor(ms/1000);
+  const m = String(Math.floor(total/60)).padStart(2,'0');
+  const s = String(total%60).padStart(2,'0');
+  return `${m}:${s}`;
+}
+
+function startGameTimer(){
+  if(gameTimer) return;
+  gameStartMs = Date.now();
+  gameTimer = setInterval(()=>{
+    timeText.textContent = fmtTime(Date.now() - gameStartMs);
+  }, 250);
+}
+
+function stopGameTimer(){
+  if(gameTimer){
+    clearInterval(gameTimer);
+    gameTimer = null;
+  }
+}
+
+function resetGameTimer(){
+  stopGameTimer();
+  gameStartMs = null;
+  timeText.textContent = '00:00';
+}
+
 
   const boardEl = document.getElementById('board');
   const rollBtn = document.getElementById('rollBtn');
@@ -239,6 +271,7 @@ const RED_POS   = [69,74,79,84,89,94];
   const diceText = document.getElementById('diceText');
   const posText = document.getElementById('posText');
   const logEl = document.getElementById('log');
+  const timeText = document.getElementById('timeText');
 
   const overlay = document.getElementById('overlay');
   const modalTitle = document.getElementById('modalTitle');
@@ -306,10 +339,12 @@ const RED_POS   = [69,74,79,84,89,94];
     rollBtn.disabled = false;
 
     if(player.pos === N){
-      log('🏁 Τέλος! Έφτασες στο 100!');
-      rollBtn.disabled = true;
-      return;
-    }
+  stopGameTimer();
+  log('🏁 Τέλος! Έφτασες στο 100!');
+  log(`⏱️ Χρόνος παρτίδας: ${timeText.textContent}`);
+  rollBtn.disabled = true;
+  return;
+}
 
     if(!triggerChallenge) return;
 
@@ -442,33 +477,40 @@ const RED_POS   = [69,74,79,84,89,94];
     scheduleResolution(correct, false);
   }
 
-  rollBtn.onclick = async () => {
-    if(animating) return;
-    if(overlay.classList.contains('show')) return;
+ rollBtn.onclick = async () => {
+  if(animating) return;
+  if(overlay.classList.contains('show')) return;
 
-    const roll = 1 + Math.floor(Math.random()*6);
-    diceText.textContent = String(roll);
-    log(`🎲 Έριξες: ${roll}`);
-    await moveBy(roll, true);
-  };
+  startGameTimer();
 
-  resetBtn.onclick = () => {
-    stopTrapTimer();
-    stopFeedbackTimer();
-    overlay.classList.remove('show');
+  const roll = 1 + Math.floor(Math.random()*6);
+  diceText.textContent = String(roll);
+  log(`🎲 Έριξες: ${roll}`);
+  await moveBy(roll, true);
+};
 
-    rollBtn.disabled = false;
-    diceText.textContent = '—';
-    logEl.innerHTML = '';
 
-    remaining.blue = [...bankBlue.keys()];
-    remaining.green = [...bankGreen.keys()];
-    remaining.gold = [...bankGold.keys()];
-    remaining.red = [...bankRed.keys()];
+ resetBtn.onclick = () => {
+  resetGameTimer();
 
-    player.pos = 1;
-    renderPawn();
-    log('🔄 Νέα παρτίδα!');
+  stopTrapTimer();
+  stopFeedbackTimer();
+  overlay.classList.remove('show');
+
+  rollBtn.disabled = false;
+  diceText.textContent = '—';
+  logEl.innerHTML = '';
+
+  remaining.blue = [...bankBlue.keys()];
+  remaining.green = [...bankGreen.keys()];
+  remaining.gold = [...bankGold.keys()];
+  remaining.red = [...bankRed.keys()];
+
+  player.pos = 1;
+  renderPawn();
+  log('🔄 Νέα παρτίδα!');
+};
+
   };
 
   renderPawn();
