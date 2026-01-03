@@ -1,11 +1,8 @@
 <script>
 (() => {
   const N = 100;
-  <script>
-(() => {
-  const N = 100;
 
-  // ✅ Inject CSS για να φαίνονται σαν "2 λέξεις-κάρτες"
+  // ✅ Inject CSS (χωρίς να ψάχνεις το <style>)
   const injectedCSS = `
     .choice{
       border:3px solid #111 !important;
@@ -30,11 +27,11 @@
       cursor:not-allowed !important;
     }
   `;
-  const styleEl = document.createElement('style');
-  styleEl.textContent = injectedCSS;
-  document.head.appendChild(styleEl);
-
-  // ... συνεχίζει ο υπόλοιπος κώδικας σου ...
+  try{
+    const styleEl = document.createElement('style');
+    styleEl.textContent = injectedCSS;
+    document.head.appendChild(styleEl);
+  }catch(e){ /* ignore */ }
 
   // ====== ΡΥΘΜΙΣΕΙΣ ΠΑΙΧΝΙΔΙΟΥ ======
   const FEEDBACK_MS = 8000;     // 8" μένει η απάντηση + κανόνας
@@ -111,9 +108,7 @@
     red: [...bankRed.keys()],
   };
   const pickNextIndex = (kind) => {
-    const arr = remaining[kind];
-    if(!arr.length){
-      // αν τελειώσουν, ξαναγεμίζουμε (σπάνιο)
+    if(!remaining[kind].length){
       remaining[kind] = [...(kind==='blue'?bankBlue:kind==='green'?bankGreen:kind==='gold'?bankGold:bankRed).keys()];
     }
     const i = Math.floor(Math.random() * remaining[kind].length);
@@ -127,7 +122,7 @@
   let feedbackTimer = null;
   let active = null; // { kind, item, answered }
 
-  // ====== DOM ======
+  // ====== DOM (αν λείπει κάτι, σταματάμε για να μη "σκάσει" σιωπηλά) ======
   const boardEl = document.getElementById('board');
   const rollBtn = document.getElementById('rollBtn');
   const resetBtn = document.getElementById('resetBtn');
@@ -145,12 +140,22 @@
   const timerWrap = document.getElementById('timerWrap');
   const timerNum = document.getElementById('timerNum');
 
+  const required = [boardEl, rollBtn, resetBtn, diceText, posText, logEl, overlay, modalTitle, modalDesc, questionText, choicesEl, rulebox, timerWrap, timerNum];
+  if(required.some(x => !x)){
+    // Αν δεν υπάρχουν τα ids στο HTML, δεν θα εμφανιστεί τίποτα.
+    console.error('Λείπουν βασικά στοιχεία HTML (ids). Έλεγξε ότι υπάρχουν: board, rollBtn, resetBtn, diceText, posText, log, overlay, modalTitle, modalDesc, questionText, choices, rulebox, timerWrap, timerNum.');
+    return;
+  }
+
   // δεν θέλουμε χειροκίνητο κλείσιμο (για να μένει 8")
-  closeBtn.style.display = 'none';
-  closeBtn.onclick = null;
+  if(closeBtn){
+    closeBtn.style.display = 'none';
+    closeBtn.onclick = null;
+  }
 
   // ====== BOARD ======
   const cells = new Map();
+  boardEl.innerHTML = '';
   for(let i=1;i<=N;i++){
     const d = document.createElement('div');
     d.className = 'cell';
@@ -198,7 +203,8 @@
     if(feedbackTimer){ clearTimeout(feedbackTimer); feedbackTimer=null; }
   }
 
-async function moveBy(steps, triggerChallenge = true){
+  // ✅ triggerChallenge=false => ΔΕΝ ανοίγει δεύτερη δοκιμασία μετά από bonus/ποινή
+  async function moveBy(steps, triggerChallenge = true){
     animating = true;
     rollBtn.disabled = true;
 
@@ -220,14 +226,13 @@ async function moveBy(steps, triggerChallenge = true){
       return;
     }
 
-  // Trigger challenge after landing (μόνο αν το επιτρέπουμε)
-if(!triggerChallenge) return;
+    if(!triggerChallenge) return;
 
-if(BLUE.has(player.pos)) return openChallenge('blue');
-if(GREEN.has(player.pos)) return openChallenge('green');
-if(GOLD.has(player.pos)) return openChallenge('gold');
-if(RED.has(player.pos)) return openChallenge('red');
-
+    // Trigger challenge after landing (μόνο από ζάρι)
+    if(BLUE.has(player.pos)) return openChallenge('blue');
+    if(GREEN.has(player.pos)) return openChallenge('green');
+    if(GOLD.has(player.pos)) return openChallenge('gold');
+    if(RED.has(player.pos)) return openChallenge('red');
   }
 
   function getItem(kind){
@@ -260,9 +265,9 @@ if(RED.has(player.pos)) return openChallenge('red');
       kind==='gold'  ? 'Διάλεξε τη σωστή γραφή. Αν είναι σωστό: +3 θέσεις.' :
       'Διάλεξε γρήγορα (5"). Αν είναι σωστό: +4. Αν είναι λάθος ή αργήσεις: −3.';
 
-    questionText.textContent = `Διάλεξε τη σωστή γραφή:`;
+    questionText.textContent = 'Διάλεξε τη σωστή γραφή:';
 
-    // 2 κουμπιά επιλογών
+    // 2 επιλογές
     choicesEl.innerHTML = '';
     const btnA = document.createElement('button');
     btnA.className = 'choice';
@@ -286,16 +291,15 @@ if(RED.has(player.pos)) return openChallenge('red');
 
   function startRedTimer(seconds){
     stopTrapTimer();
-    let remaining = seconds;
-    timerNum.textContent = String(remaining);
+    let remainingSec = seconds;
+    timerNum.textContent = String(remainingSec);
 
     trapTimer = setInterval(()=>{
-      remaining -= 1;
-      timerNum.textContent = String(remaining);
-      if(remaining <= 0){
+      remainingSec -= 1;
+      timerNum.textContent = String(remainingSec);
+      if(remainingSec <= 0){
         stopTrapTimer();
         if(active && !active.answered){
-          // timeout
           active.answered = true;
           lockChoices();
           showFeedback(false, true);
@@ -311,7 +315,6 @@ if(RED.has(player.pos)) return openChallenge('red');
 
   function showFeedback(correct, timeout=false){
     const { item } = active;
-
     rulebox.classList.add('show');
     rulebox.innerHTML = `
       <div style="font-weight:900;margin-bottom:6px;">
@@ -329,7 +332,6 @@ if(RED.has(player.pos)) return openChallenge('red');
 
       const kind = active.kind;
 
-      // moves
       if(kind==='blue' && correct){ log('✅ Σωστό (🟦) → +1'); await moveBy(+1, false); return; }
       if(kind==='green' && correct){ log('✅ Σωστό (🟩) → +2'); await moveBy(+2, false); return; }
       if(kind==='gold' && correct){ log('✅ Σωστό (🟨) → +3'); await moveBy(+3, false); return; }
@@ -337,11 +339,11 @@ if(RED.has(player.pos)) return openChallenge('red');
       if(kind==='red'){
         if(correct){ log('✅ Σωστό (🟥) → +4'); await moveBy(+4, false); return; }
         log(timeout ? '⏱️ Timeout (🟥) → −3' : '❌ Λάθος (🟥) → −3');
-      await moveBy(-3, false);
+        await moveBy(-3, false);
         return;
       }
 
-      // wrong on blue/green/gold => no move
+      // λάθος σε μπλε/πράσινο/κίτρινο => 0
       log(kind==='blue' ? '❌ Λάθος (🟦) → 0' : kind==='green' ? '❌ Λάθος (🟩) → 0' : '❌ Λάθος (🟨) → 0');
     }, FEEDBACK_MS);
   }
@@ -351,7 +353,6 @@ if(RED.has(player.pos)) return openChallenge('red');
 
     active.answered = true;
     stopTrapTimer();
-
     lockChoices();
 
     const correct = (choice === active.item.correct);
@@ -361,13 +362,12 @@ if(RED.has(player.pos)) return openChallenge('red');
 
   rollBtn.onclick = async () => {
     if(animating) return;
-    // αν είναι ανοιχτό overlay, μην επιτρέπεις νέο ζάρι
     if(overlay.classList.contains('show')) return;
 
     const roll = 1 + Math.floor(Math.random()*6);
     diceText.textContent = String(roll);
     log(`🎲 Έριξες: ${roll}`);
-    await moveBy(roll);
+    await moveBy(roll, true); // ✅ μόνο εδώ ανοίγει δοκιμασία
   };
 
   resetBtn.onclick = () => {
@@ -379,7 +379,6 @@ if(RED.has(player.pos)) return openChallenge('red');
     diceText.textContent = '—';
     logEl.innerHTML = '';
 
-    // επαναφορά δεξαμενών (μη επανάληψη)
     remaining.blue = [...bankBlue.keys()];
     remaining.green = [...bankGreen.keys()];
     remaining.gold = [...bankGold.keys()];
