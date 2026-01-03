@@ -1,6 +1,40 @@
 <script>
 (() => {
   const N = 100;
+  <script>
+(() => {
+  const N = 100;
+
+  // ✅ Inject CSS για να φαίνονται σαν "2 λέξεις-κάρτες"
+  const injectedCSS = `
+    .choice{
+      border:3px solid #111 !important;
+      background:#fff !important;
+      padding:16px !important;
+      border-radius:18px !important;
+      cursor:pointer !important;
+      font-weight:1000 !important;
+      text-align:center !important;
+      font-size:22px !important;
+      letter-spacing:.2px !important;
+      box-shadow:0 10px 20px rgba(0,0,0,.10) !important;
+      transition: transform .12s ease, background .12s ease !important;
+    }
+    .choice:hover{
+      background:#f7f7f7 !important;
+      transform: translateY(-2px) !important;
+    }
+    .choice:disabled{
+      opacity:.7 !important;
+      transform:none !important;
+      cursor:not-allowed !important;
+    }
+  `;
+  const styleEl = document.createElement('style');
+  styleEl.textContent = injectedCSS;
+  document.head.appendChild(styleEl);
+
+  // ... συνεχίζει ο υπόλοιπος κώδικας σου ...
 
   // ====== ΡΥΘΜΙΣΕΙΣ ΠΑΙΧΝΙΔΙΟΥ ======
   const FEEDBACK_MS = 8000;     // 8" μένει η απάντηση + κανόνας
@@ -164,7 +198,7 @@
     if(feedbackTimer){ clearTimeout(feedbackTimer); feedbackTimer=null; }
   }
 
-  async function moveBy(steps){
+async function moveBy(steps, triggerChallenge = true){
     animating = true;
     rollBtn.disabled = true;
 
@@ -186,11 +220,14 @@
       return;
     }
 
-    // Trigger challenge after landing
-    if(BLUE.has(player.pos)) return openChallenge('blue');
-    if(GREEN.has(player.pos)) return openChallenge('green');
-    if(GOLD.has(player.pos)) return openChallenge('gold');
-    if(RED.has(player.pos)) return openChallenge('red');
+  // Trigger challenge after landing (μόνο αν το επιτρέπουμε)
+if(!triggerChallenge) return;
+
+if(BLUE.has(player.pos)) return openChallenge('blue');
+if(GREEN.has(player.pos)) return openChallenge('green');
+if(GOLD.has(player.pos)) return openChallenge('gold');
+if(RED.has(player.pos)) return openChallenge('red');
+
   }
 
   function getItem(kind){
@@ -293,14 +330,14 @@
       const kind = active.kind;
 
       // moves
-      if(kind==='blue' && correct){ log('✅ Σωστό (🟦) → +1'); await moveBy(+1); return; }
-      if(kind==='green' && correct){ log('✅ Σωστό (🟩) → +2'); await moveBy(+2); return; }
-      if(kind==='gold' && correct){ log('✅ Σωστό (🟨) → +3'); await moveBy(+3); return; }
+      if(kind==='blue' && correct){ log('✅ Σωστό (🟦) → +1'); await moveBy(+1, false); return; }
+      if(kind==='green' && correct){ log('✅ Σωστό (🟩) → +2'); await moveBy(+2, false); return; }
+      if(kind==='gold' && correct){ log('✅ Σωστό (🟨) → +3'); await moveBy(+3, false); return; }
 
       if(kind==='red'){
-        if(correct){ log('✅ Σωστό (🟥) → +4'); await moveBy(+4); return; }
+        if(correct){ log('✅ Σωστό (🟥) → +4'); await moveBy(+4, false); return; }
         log(timeout ? '⏱️ Timeout (🟥) → −3' : '❌ Λάθος (🟥) → −3');
-        await moveBy(-3);
+      await moveBy(-3, false);
         return;
       }
 
