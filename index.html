@@ -382,7 +382,7 @@
     if(activeChallenge.kind === 'bonus'){
       if(correct){
         log('⭐ Σωστό bonus → +5!');
-        await sleep(500);
+        await sleep(10000);
         overlay.classList.remove('show');
         await moveBy(+5);
         return;
@@ -392,7 +392,7 @@
     } else if(activeChallenge.kind === 'trap'){
       if(timeout || !correct){
         log('🐍 Παγίδα → −5!');
-        await sleep(500);
+        await sleep(10000);
         overlay.classList.remove('show');
         await moveBy(-5);
         return;
@@ -404,14 +404,14 @@
         log('✅ Σωστό!');
       } else {
         log('❌ Λάθος → −2!');
-        await sleep(500);
+        await sleep(10000);
         overlay.classList.remove('show');
         await moveBy(-2);
         return;
       }
     }
 
-    await sleep(400);
+    await sleep(10000);
     overlay.classList.remove('show');
   }
 
