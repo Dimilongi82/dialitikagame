@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Η Περιπέτεια των Διαλυτικών — Solo</title>
+  <style>
+    :root{
+      --bg:#f3e7c9;
+      --panel:#ffffff;
+      --ink:#111;
+      --muted:#555;
+      --blue:#3b82f6;
+      --green:#22c55e;
+      --red:#ef4444;
+      --gold:#f59e0b;
+      --shadow: 0 10px 30px rgba(0,0,0,.12);
+      --radius: 18px;
+      --cell: 48px;
+      --gap: 8px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+    header{padding:18px 16px 0;max-width:1200px;margin:0 auto}
+    .wrap{max-width:1200px;margin:0 auto;padding:12px 16px 30px;display:grid;grid-template-columns:1fr 360px;gap:16px;align-items:start}
+    @media (max-width: 980px){.wrap{grid-template-columns:1fr}}
+    .card{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
+    h1{margin:8px 0 6px;font-size:clamp(22px,3vw,34px)}
+    .subtitle{margin:0 0 12px;color:var(--muted);font-size:14px;line-height:1.35}
+
+    .board{
+      display:grid;
+      grid-template-columns: repeat(10, var(--cell)); /* 10x10 = 100 */
+      gap: var(--gap);
+      justify-content:center;
+      padding: 10px 6px 14px;
+      user-select:none;
+    }
+    @media (max-width: 460px){:root{--cell:42px;--gap:7px}}
+
+    .cell{
+      width:var(--cell);height:var(--cell);
+      border-radius:999px;border:3px solid #222;
+      display:flex;align-items:center;justify-content:center;
+      font-weight:800;background:#fff;position:relative;
+      font-size: 12px;
+    }
+    .cell.blue{border-color:var(--blue)}
+    .cell.green{border-color:var(--green)}
+    .cell.red{border-color:var(--red)}
+    .cell.gold{border-color:var(--gold)}
+
+    .pawn{
+      position:absolute;width:16px;height:16px;border-radius:50%;
+      background:#111;left:6px;bottom:6px;
+      box-shadow:0 4px 10px rgba(0,0,0,.25);
+      border:2px solid rgba(255,255,255,.7);
+    }
+
+    .side h2{margin:6px 0 10px;font-size:18px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .btn{appearance:none;border:0;background:#111;color:#fff;padding:10px 12px;border-radius:999px;font-weight:800;cursor:pointer}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .btn.alt{background:#fff;color:#111;border:1px solid #ddd}
+    .pill{padding:8px 10px;border-radius:999px;background:#fafafa;border:1px solid #e8e8e8;font-weight:800}
+    .log{margin-top:12px;padding:10px;border-radius:14px;background:#fafafa;border:1px solid #eee;height:240px;overflow:auto;font-size:13px}
+    .log p{margin:0 0 8px;line-height:1.35}
+
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:18px;z-index:50}
+    .overlay.show{display:flex}
+    .modal{width:min(760px,100%);background:#fff;border-radius:22px;box-shadow:var(--shadow);padding:16px}
+    .modal h3{margin:6px 0 8px;font-size:20px}
+    .modal .muted{color:var(--muted);font-size:13px;margin:0 0 10px;line-height:1.35}
+    .choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+    @media (max-width: 520px){.choices{grid-template-columns:1fr}}
+    .choice{border:1px solid #e8e8e8;background:#fafafa;padding:12px;border-radius:16px;cursor:pointer;font-weight:900;text-align:center}
+    .choice:hover{background:#f2f2f2}
+    .rulebox{margin-top:12px;padding:12px;border-radius:16px;background:#fff7ed;border:1px solid #fed7aa;display:none}
+    .rulebox.show{display:block}
+    .timer{display:inline-flex;gap:8px;align-items:center;font-weight:900;padding:6px 10px;border-radius:999px;background:#ffe4e6;border:1px solid #fecdd3;margin-left:8px}
+    .footer{display:flex;justify-content:flex-end;gap:10px;margin-top:12px;flex-wrap:wrap}
+  </style>
+</head>
+<body>
+<header>
+  <h1>Η Περιπέτεια των Διαλυτικών (Solo)</h1>
+  <p class="subtitle">Ρίξε το ζάρι, προχώρα αυτόματα και απάντησε σε δοκιμασίες σύμφωνα με τη Γραμματική Τριανταφυλλίδη.</p>
+</header>
+
+<main class="wrap">
+  <section class="card">
+    <div class="board" id="board"></div>
+    <p class="subtitle" style="margin:0;text-align:center">
+      Χρώματα: 🟦 βασικό · 🟩 τόνος διώχνει καπέλο · 🟥 παγίδα (timer) · 🟨 bonus (διαλυτικά+τόνο).
+    </p>
+  </section>
+
+  <aside class="card side">
+    <h2>Πίνακας Ελέγχου</h2>
+
+    <div class="row" style="margin-bottom:10px;">
+      <span class="pill">Θέση: <span id="posText">1</span></span>
+      <span class="pill">Ζάρι: <span id="diceText">—</span></span>
+    </div>
+
+    <div class="row" style="margin-bottom:10px;">
+      <button class="btn" id="rollBtn">Ρίξε το ζάρι 🎲</button>
+      <button class="btn alt" id="resetBtn">Επανεκκίνηση</button>
+    </div>
+
+    <div class="log" id="log" aria-live="polite"></div>
+
+    <p class="subtitle" style="margin-top:10px;">
+      Ποινές/Bonus: λάθος βασικό/πράσινο → −2 · λάθος/timeout παγίδα → −5 · σωστό bonus → +5.
+    </p>
+  </aside>
+</main>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <h3 id="modalTitle">Δοκιμασία</h3>
+    <p class="muted" id="modalDesc"></p>
+
+    <div id="timerWrap" style="display:none;">
+      <span class="timer">⏱️ <span id="timerNum">5</span>s</span>
+      <span class="muted">Διάλεξε γρήγορα, αλλιώς −5!</span>
+    </div>
+
+    <div class="card" style="padding:12px;border-radius:16px;box-shadow:none;border:1px solid #eee;">
+      <div style="font-size:20px;font-weight:900;text-align:center;" id="questionText"></div>
+    </div>
+
+    <div class="choices" id="choices"></div>
+
+    <div class="rulebox" id="rulebox"></div>
+
+    <div class="footer">
+      <button class="btn alt" id="closeBtn" style="display:none;">Συνέχεια</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const N = 100;
+
+  // Suggested positions (editable)
+  const BASIC_POS = [4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72];
+  const TONE_POS  = [30,35,41,46,53,58,62,66,70,74,78,82];
+  const TRAP_POS  = [14,29,47,63,79,91];
+  const BONUS_POS = [50,67,84,97];
+
+  const BASIC = new Set(BASIC_POS);
+  const TONEKICKS = new Set(TONE_POS);
+  const TRAP = new Set(TRAP_POS);
+  const BONUS = new Set(BONUS_POS);
+
+  // Rules (from what you provided)
+  const ruleBase = 'Σύμφωνα με τη Γραμματική Τριανταφυλλίδη: Τα διαλυτικά σημειώνονται πάνω από το ι ή υ για να δείξουμε ότι προφέρονται χωριστά από το προηγούμενο φωνήεν (α, ε, ο, υ).';
+  const ruleTone = 'Σύμφωνα με τη Γραμματική Τριανταφυλλίδη: Δεν σημειώνουμε διαλυτικά όταν το προηγούμενο φωνήεν παίρνει τόνο (ο τόνος “διώχνει” το καπέλο).';
+  const ruleNoDiph = 'Σύμφωνα με τη Γραμματική Τριανταφυλλίδη: Δεν βάζουμε διαλυτικά όταν δεν έχουμε δίψηφο φωνήεν.';
+  const ruleBoth = 'Σύμφωνα με τη Γραμματική Τριανταφυλλίδη: Όταν χρειάζεται και χωριστή προφορά και τονισμός, γράφουμε διαλυτικά με τόνο (π.χ. φαΐ, ευφυΐα, Ταΰγετος).';
+
+  const ALL_CHOICES = ['Τόνος','Διαλυτικά','Διαλυτικά + τόνο','Τίποτα'];
+
+  // Word banks (edit/add freely)
+  const bankBasic = [
+    { q:'Διάλεξε τη σωστή γραφή:  χαϊδεύω / χαιδεύω', correct:'Διαλυτικά', why:ruleBase, wrong:ruleBase },
+    { q:'Διάλεξε τη σωστή γραφή:  θεϊκός / θεικός', correct:'Διαλυτικά', why:ruleBase, wrong:ruleBase },
+    { q:'Διάλεξε τη σωστή γραφή:  μαϊμού / μαιμού', correct:'Διαλυτικά', why:ruleBase, wrong:ruleBase },
+    { q:'Διάλεξε τη σωστή γραφή:  βοϊδάκι / βοιδάκι', correct:'Διαλυτικά', why:ruleBase, wrong:ruleBase },
+    { q:'Διάλεξε τη σωστή γραφή:  μυϊκός / μυικός', correct:'Διαλυτικά', why:ruleBase, wrong:ruleBase },
+    { q:'Διάλεξε τη σωστή γραφή:  ευνοϊκός / ευνοικός', correct:'Διαλυτικά', why:ruleBase, wrong:ruleBase },
+    { q:'Διάλεξε τη σωστή γραφή:  ξεϋφαίνω / ξευφαίνω', correct:'Διαλυτικά', why:ruleBase, wrong:ruleBase },
+    { q:'Διάλεξε τη σωστή γραφή:  πραϋντικός / πραυντικός', correct:'Διαλυτικά', why:ruleBase, wrong:ruleBase },
+  ];
+
+  const bankToneKicks = [
+    { q:'Διάλεξε:  πλάι  (τόνος ή διαλυτικά;)', correct:'Τόνος', why:ruleTone, wrong:ruleTone },
+    { q:'Διάλεξε:  νεράιδα  (τόνος ή διαλυτικά;)', correct:'Τόνος', why:ruleTone, wrong:ruleTone },
+    { q:'Διάλεξε:  κορόιδεψα  (τόνος ή διαλυτικά;)', correct:'Τόνος', why:ruleTone, wrong:ruleTone },
+    { q:'Διάλεξε:  πλαϊνός  (τόνος ή διαλυτικά;)', correct:'Διαλυτικά', why:ruleBase, wrong:ruleBase },
+    { q:'Διάλεξε:  κοροϊδεύω  (τόνος ή διαλυτικά;)', correct:'Διαλυτικά', why:ruleBase, wrong:ruleBase },
+    { q:'Διάλεξε:  πρωί  (τόνος / διαλυτικά / τίποτα;)', correct:'Τόνος', why:ruleNoDiph, wrong:ruleNoDiph },
+  ];
+
+  const bankTrap = [
+    { q:'ΓΡΗΓΟΡΑ! Διάλεξε:  κορόιδεψα', correct:'Τόνος', why:ruleTone, wrong:ruleTone },
+    { q:'ΓΡΗΓΟΡΑ! Διάλεξε:  κοροϊδεύω', correct:'Διαλυτικά', why:ruleBase, wrong:ruleBase },
+    { q:'ΓΡΗΓΟΡΑ! Διάλεξε:  νεράιδα', correct:'Τόνος', why:ruleTone, wrong:ruleTone },
+    { q:'ΓΡΗΓΟΡΑ! Διάλεξε:  πλαϊνός', correct:'Διαλυτικά', why:ruleBase, wrong:ruleBase },
+  ];
+
+  const bankBonus = [
+    { q:'⭐ Bonus: Διάλεξε:  φαΐ', correct:'Διαλυτικά + τόνο', why:ruleBoth, wrong:ruleBoth },
+    { q:'⭐ Bonus: Διάλεξε:  ευφυΐα', correct:'Διαλυτικά + τόνο', why:ruleBoth, wrong:ruleBoth },
+    { q:'⭐ Bonus: Διάλεξε:  Ταΰγετος', correct:'Διαλυτικά + τόνο', why:ruleBoth, wrong:ruleBoth },
+  ];
+
+  // State
+  const player = { pos: 1 };
+  let animating = false;
+
+  // DOM
+  const boardEl = document.getElementById('board');
+  const rollBtn = document.getElementById('rollBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const diceText = document.getElementById('diceText');
+  const posText = document.getElementById('posText');
+  const logEl = document.getElementById('log');
+
+  const overlay = document.getElementById('overlay');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalDesc = document.getElementById('modalDesc');
+  const questionText = document.getElementById('questionText');
+  const choicesEl = document.getElementById('choices');
+  const rulebox = document.getElementById('rulebox');
+  const closeBtn = document.getElementById('closeBtn');
+  const timerWrap = document.getElementById('timerWrap');
+  const timerNum = document.getElementById('timerNum');
+
+  // Build board 1..100
+  const cells = new Map();
+  for(let i=1;i<=N;i++){
+    const d = document.createElement('div');
+    d.className = 'cell';
+    d.textContent = i;
+    if(BASIC.has(i)) d.classList.add('blue');
+    if(TONEKICKS.has(i)) d.classList.add('green');
+    if(TRAP.has(i)) d.classList.add('red');
+    if(BONUS.has(i)) d.classList.add('gold');
+    boardEl.appendChild(d);
+    cells.set(i,d);
+  }
+
+  function renderPawn(){
+    for(const [,cell] of cells){
+      cell.querySelectorAll('.pawn').forEach(p=>p.remove());
+    }
+    const cell = cells.get(player.pos);
+    if(cell){
+      const pawn = document.createElement('div');
+      pawn.className = 'pawn';
+      cell.appendChild(pawn);
+    }
+    posText.textContent = String(player.pos);
+  }
+
+  function log(msg){
+    const p = document.createElement('p');
+    p.textContent = msg;
+    logEl.appendChild(p);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function clampPos(x){
+    if(x < 1) return 1;
+    if(x > N) return N;
+    return x;
+  }
+  const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+  async function moveBy(steps){
+    animating = true;
+    rollBtn.disabled = true;
+
+    const target = clampPos(player.pos + steps);
+    const dir = target >= player.pos ? 1 : -1;
+
+    while(player.pos !== target){
+      player.pos += dir;
+      renderPawn();
+      await sleep(120);
+    }
+
+    animating = false;
+    rollBtn.disabled = false;
+
+    if(player.pos === N){
+      log('🏁 Τέλος! Έφτασες στο 100!');
+      rollBtn.disabled = true;
+      return;
+    }
+
+    // Trigger challenge
+    if(BASIC.has(player.pos)) return openChallenge('basic');
+    if(TONEKICKS.has(player.pos)) return openChallenge('tonekicks');
+    if(TRAP.has(player.pos)) return openChallenge('trap');
+    if(BONUS.has(player.pos)) return openChallenge('bonus');
+  }
+
+  const pickRandom = arr => arr[Math.floor(Math.random()*arr.length)];
+
+  let trapTimer = null;
+  let activeChallenge = null;
+
+  function stopTrapTimer(){
+    if(trapTimer){ clearInterval(trapTimer); trapTimer=null; }
+  }
+
+  function openChallenge(kind){
+    let item;
+    if(kind==='basic') item = pickRandom(bankBasic);
+    if(kind==='tonekicks') item = pickRandom(bankToneKicks);
+    if(kind==='trap') item = pickRandom(bankTrap);
+    if(kind==='bonus') item = pickRandom(bankBonus);
+
+    activeChallenge = { kind, item, answered:false };
+    rulebox.classList.remove('show');
+    rulebox.innerHTML = '';
+    closeBtn.style.display = 'none';
+    timerWrap.style.display = (kind==='trap') ? 'block' : 'none';
+
+    modalTitle.textContent =
+      kind==='basic' ? '🟦 Δοκιμασία: Καπέλο' :
+      kind==='tonekicks' ? '🟩 Δοκιμασία: Ο τόνος κλωτσά το καπέλο' :
+      kind==='trap' ? '🟥 Παγίδα! Γρήγορη επιλογή' :
+      '🟨 Bonus: Διπλή δύναμη';
+
+    modalDesc.textContent =
+      kind==='basic' ? 'Διάλεξε τι χρειάζεται: διαλυτικά / τόνο / τίποτα.' :
+      kind==='tonekicks' ? 'Πρόσεχε: όταν υπάρχει τόνος στο προηγούμενο φωνήεν, τα διαλυτικά δεν γράφονται.' :
+      kind==='trap' ? 'Έχεις λίγα δευτερόλεπτα. Αν αργήσεις: −5 θέσεις.' :
+      'Αν βάλεις σωστά διαλυτικά + τόνο: +5 θέσεις!';
+
+    questionText.textContent = item.q;
+
+    choicesEl.innerHTML = '';
+    const choices = (kind==='bonus')
+      ? ['Διαλυτικά + τόνο','Διαλυτικά','Τόνος','Τίποτα']
+      : ALL_CHOICES;
+
+    for(const ch of choices){
+      const b = document.createElement('button');
+      b.className = 'choice';
+      b.type = 'button';
+      b.textContent = ch;
+      b.onclick = () => submitAnswer(ch);
+      choicesEl.appendChild(b);
+    }
+
+    overlay.classList.add('show');
+
+    if(kind==='trap') startTrapTimer(5);
+  }
+
+  function startTrapTimer(seconds){
+    stopTrapTimer();
+    let remaining = seconds;
+    timerNum.textContent = String(remaining);
+
+    trapTimer = setInterval(()=>{
+      remaining -= 1;
+      timerNum.textContent = String(remaining);
+      if(remaining <= 0){
+        stopTrapTimer();
+        if(activeChallenge && !activeChallenge.answered){
+          activeChallenge.answered = true;
+          revealRule(false, true);
+          applyOutcome(false, true);
+        }
+      }
+    }, 1000);
+  }
+
+  function revealRule(correct, timeout=false){
+    const { item } = activeChallenge;
+    rulebox.classList.add('show');
+    rulebox.innerHTML = `
+      <div style="font-weight:900;margin-bottom:6px;">
+        ${timeout ? '⏱️ Πολύ αργά!' : (correct ? '✅ Σωστό!' : '❌ Λάθος!')}
+      </div>
+      <div style="font-weight:900;margin-bottom:6px;">Κανόνας:</div>
+      <div>${correct ? item.why : item.wrong}</div>
+    `;
+    closeBtn.style.display = 'inline-flex';
+  }
+
+  async function applyOutcome(correct, timeout=false){
+    Array.from(choicesEl.querySelectorAll('button')).forEach(b=>b.disabled=true);
+
+    if(activeChallenge.kind === 'bonus'){
+      if(correct){
+        log('⭐ Σωστό bonus → +5!');
+        await sleep(500);
+        overlay.classList.remove('show');
+        await moveBy(+5);
+        return;
+      } else {
+        log('⭐ Χάθηκε το bonus.');
+      }
+    } else if(activeChallenge.kind === 'trap'){
+      if(timeout || !correct){
+        log('🐍 Παγίδα → −5!');
+        await sleep(500);
+        overlay.classList.remove('show');
+        await moveBy(-5);
+        return;
+      } else {
+        log('🐍 Σωστό στην παγίδα! Συνεχίζεις.');
+      }
+    } else {
+      if(correct){
+        log('✅ Σωστό!');
+      } else {
+        log('❌ Λάθος → −2!');
+        await sleep(500);
+        overlay.classList.remove('show');
+        await moveBy(-2);
+        return;
+      }
+    }
+
+    await sleep(400);
+    overlay.classList.remove('show');
+  }
+
+  function submitAnswer(choice){
+    if(!activeChallenge || activeChallenge.answered) return;
+    activeChallenge.answered = true;
+    stopTrapTimer();
+
+    const correct = (choice === activeChallenge.item.correct);
+    revealRule(correct, false);
+    applyOutcome(correct, false);
+  }
+
+  rollBtn.onclick = async () => {
+    if(animating) return;
+    const roll = 1 + Math.floor(Math.random()*6);
+    diceText.textContent = String(roll);
+    log(`🎲 Έριξες: ${roll}`);
+    await moveBy(roll);
+  };
+
+  resetBtn.onclick = () => {
+    stopTrapTimer();
+    overlay.classList.remove('show');
+    rollBtn.disabled = false;
+    diceText.textContent = '—';
+    logEl.innerHTML = '';
+    player.pos = 1;
+    renderPawn();
+    log('🔄 Νέα παρτίδα!');
+  };
+
+  closeBtn.onclick = () => overlay.classList.remove('show');
+
+  // init
+  renderPawn();
+  log('🎮 Έτοιμο! Πάτα "Ρίξε το ζάρι".');
+})();
+</script>
+</body>
+</html>
