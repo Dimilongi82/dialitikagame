@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Πόσο γρήγορα μπορείς να φτάσεις στο τέλος; </title>
+  <title>Πόσο γρήγορα μπορείς να φτάσεις στο τέλος;</title>
   <style>
     :root{
       --bg:#f3e7c9;
@@ -107,7 +107,6 @@
       <span class="pill">Θέση: <span id="posText">1</span></span>
       <span class="pill">Ζάρι: <span id="diceText">—</span></span>
       <span class="pill">Χρόνος: <span id="timeText">00:00</span></span>
-
     </div>
 
     <div class="row" style="margin-bottom:10px;">
@@ -119,7 +118,6 @@
 
     <p class="subtitle" style="margin-top:10px;">
       Κανόνες κίνησης: 🟦 σωστό +1 · 🟩 σωστό +2 · 🟨 σωστό +3 · 🟥 σωστό +4, λάθος/timeout −3.
-      Μετά το bonus/ποινή ΔΕΝ ανοίγει δεύτερη δοκιμασία.
     </p>
   </aside>
 </main>
@@ -150,20 +148,22 @@
 document.addEventListener('DOMContentLoaded', () => {
   const N = 100;
 
+  // ====== ΡΥΘΜΙΣΕΙΣ ======
   const FEEDBACK_MS = 8000;
   const TRAP_SECONDS = 5;
 
-const BLUE_POS  = [2,4,6,8,10,12,14,16,18,20,22,24];
-const GREEN_POS = [27,30,33,36,39,42,45,48];
-const GOLD_POS  = [52,56,60,64];
-const RED_POS   = [69,74,79,84,89,94];
-
+  // Θέσεις (όπως τα έχεις τώρα)
+  const BLUE_POS  = [2,4,6,8,10,12,14,16,18,20,22,24];
+  const GREEN_POS = [27,30,33,36,39,42,45,48];
+  const GOLD_POS  = [52,56,60,64];
+  const RED_POS   = [69,74,79,84,89,94];
 
   const BLUE  = new Set(BLUE_POS);
   const GREEN = new Set(GREEN_POS);
   const GOLD  = new Set(GOLD_POS);
   const RED   = new Set(RED_POS);
 
+  // ====== ΚΑΝΟΝΕΣ ======
   const ruleBase =
     'Σύμφωνα με τη Γραμματική Τριανταφυλλίδη: Τα διαλυτικά σημειώνονται πάνω από το ι ή υ για να δείξουμε ότι προφέρονται χωριστά από το προηγούμενο φωνήεν (α, ε, ο, υ).';
   const ruleTone =
@@ -173,6 +173,7 @@ const RED_POS   = [69,74,79,84,89,94];
   const ruleBoth =
     'Σύμφωνα με τη Γραμματική Τριανταφυλλίδη: Όταν χρειάζεται και χωριστή προφορά και τονισμός, γράφουμε διαλυτικά με τόνο (π.χ. φαΐ, ευφυΐα, Ταΰγετος, καΐκι).';
 
+  // ====== ΛΙΣΤΕΣ ======
   const bankBlue = [
     { a:'χαϊδεύω', b:'χαιδεύω', correct:'a', rule:ruleBase },
     { a:'θεϊκός', b:'θεικός', correct:'a', rule:ruleBase },
@@ -213,11 +214,12 @@ const RED_POS   = [69,74,79,84,89,94];
     { a:'διαϋγής', b:'διαυγής', correct:'a', rule:ruleBase },
   ];
 
+  // “Μη επανάληψη” στην παρτίδα
   const remaining = {
     blue: [...bankBlue.keys()],
     green: [...bankGreen.keys()],
     gold: [...bankGold.keys()],
-    red: [...bankRed.keys()],
+    red:  [...bankRed.keys()],
   };
   const pickNextIndex = (kind) => {
     if(!remaining[kind].length){
@@ -227,71 +229,72 @@ const RED_POS   = [69,74,79,84,89,94];
     return remaining[kind].splice(i,1)[0];
   };
 
+  // ====== STATE ======
   const player = { pos: 1 };
   let animating = false;
   let trapTimer = null;
   let feedbackTimer = null;
   let active = null;
+
   // ⏱️ Χρονόμετρο παρτίδας
-let gameStartMs = null;
-let gameTimer = null;
+  let gameStartMs = null;
+  let gameTimer = null;
 
-function fmtTime(ms){
-  const total = Math.floor(ms/1000);
-  const m = String(Math.floor(total/60)).padStart(2,'0');
-  const s = String(total%60).padStart(2,'0');
-  return `${m}:${s}`;
-}
-
-function startGameTimer(){
-  if(gameTimer) return;
-  gameStartMs = Date.now();
-  gameTimer = setInterval(()=>{
-    timeText.textContent = fmtTime(Date.now() - gameStartMs);
-  }, 250);
-}
-
-function stopGameTimer(){
-  if(gameTimer){
-    clearInterval(gameTimer);
-    gameTimer = null;
-  }
-}
-
-function resetGameTimer(){
-  stopGameTimer();
-  gameStartMs = null;
-  timeText.textContent = '00:00';
-}
-
-
-  const boardEl = document.getElementById('board');
-  const rollBtn = document.getElementById('rollBtn');
+  // ====== DOM ======
+  const boardEl  = document.getElementById('board');
+  const rollBtn  = document.getElementById('rollBtn');
   const resetBtn = document.getElementById('resetBtn');
   const diceText = document.getElementById('diceText');
-  const posText = document.getElementById('posText');
-  const logEl = document.getElementById('log');
+  const posText  = document.getElementById('posText');
+  const logEl    = document.getElementById('log');
   const timeText = document.getElementById('timeText');
 
-  const overlay = document.getElementById('overlay');
-  const modalTitle = document.getElementById('modalTitle');
-  const modalDesc = document.getElementById('modalDesc');
-  const questionText = document.getElementById('questionText');
-  const choicesEl = document.getElementById('choices');
-  const rulebox = document.getElementById('rulebox');
-  const timerWrap = document.getElementById('timerWrap');
-  const timerNum = document.getElementById('timerNum');
+  const overlay     = document.getElementById('overlay');
+  const modalTitle  = document.getElementById('modalTitle');
+  const modalDesc   = document.getElementById('modalDesc');
+  const questionText= document.getElementById('questionText');
+  const choicesEl   = document.getElementById('choices');
+  const rulebox     = document.getElementById('rulebox');
+  const timerWrap   = document.getElementById('timerWrap');
+  const timerNum    = document.getElementById('timerNum');
 
+  // ====== Χρονόμετρο helpers ======
+  function fmtTime(ms){
+    const total = Math.floor(ms/1000);
+    const m = String(Math.floor(total/60)).padStart(2,'0');
+    const s = String(total%60).padStart(2,'0');
+    return `${m}:${s}`;
+  }
+  function startGameTimer(){
+    if(gameTimer) return;
+    gameStartMs = Date.now();
+    gameTimer = setInterval(()=>{
+      timeText.textContent = fmtTime(Date.now() - gameStartMs);
+    }, 250);
+  }
+  function stopGameTimer(){
+    if(gameTimer){
+      clearInterval(gameTimer);
+      gameTimer = null;
+    }
+  }
+  function resetGameTimer(){
+    stopGameTimer();
+    gameStartMs = null;
+    timeText.textContent = '00:00';
+  }
+
+  // ====== BUILD BOARD ======
   const cells = new Map();
   boardEl.innerHTML = '';
   for(let i=1;i<=N;i++){
     const d = document.createElement('div');
     d.className = 'cell';
     d.textContent = i;
-    if(BLUE.has(i)) d.classList.add('blue');
+    if(BLUE.has(i))  d.classList.add('blue');
     if(GREEN.has(i)) d.classList.add('green');
-    if(GOLD.has(i)) d.classList.add('gold');
-    if(RED.has(i)) d.classList.add('red');
+    if(GOLD.has(i))  d.classList.add('gold');
+    if(RED.has(i))   d.classList.add('red');
     boardEl.appendChild(d);
     cells.set(i,d);
   }
@@ -339,19 +342,19 @@ function resetGameTimer(){
     rollBtn.disabled = false;
 
     if(player.pos === N){
-  stopGameTimer();
-  log('🏁 Τέλος! Έφτασες στο 100!');
-  log(`⏱️ Χρόνος παρτίδας: ${timeText.textContent}`);
-  rollBtn.disabled = true;
-  return;
-}
+      stopGameTimer();
+      log('🏁 Τέλος! Έφτασες στο 100!');
+      log(`⏱️ Χρόνος παρτίδας: ${timeText.textContent}`);
+      rollBtn.disabled = true;
+      return;
+    }
 
     if(!triggerChallenge) return;
 
-    if(BLUE.has(player.pos)) return openChallenge('blue');
+    if(BLUE.has(player.pos))  return openChallenge('blue');
     if(GREEN.has(player.pos)) return openChallenge('green');
-    if(GOLD.has(player.pos)) return openChallenge('gold');
-    if(RED.has(player.pos)) return openChallenge('red');
+    if(GOLD.has(player.pos))  return openChallenge('gold');
+    if(RED.has(player.pos))   return openChallenge('red');
   }
 
   function getItem(kind){
@@ -447,12 +450,12 @@ function resetGameTimer(){
     stopFeedbackTimer();
     feedbackTimer = setTimeout(async () => {
       overlay.classList.remove('show');
-
       const kind = active.kind;
 
-      if(kind==='blue' && correct){ log('✅ 🟦 +1'); await moveBy(+1, false); return; }
+      // σωστό => αυτόματη κίνηση, χωρίς δεύτερη δοκιμασία
+      if(kind==='blue'  && correct){ log('✅ 🟦 +1'); await moveBy(+1, false); return; }
       if(kind==='green' && correct){ log('✅ 🟩 +2'); await moveBy(+2, false); return; }
-      if(kind==='gold' && correct){ log('✅ 🟨 +3'); await moveBy(+3, false); return; }
+      if(kind==='gold'  && correct){ log('✅ 🟨 +3'); await moveBy(+3, false); return; }
 
       if(kind==='red'){
         if(correct){ log('✅ 🟥 +4'); await moveBy(+4, false); return; }
@@ -461,6 +464,7 @@ function resetGameTimer(){
         return;
       }
 
+      // λάθος σε blue/green/gold => καμία κίνηση
       log('❌ 0');
     }, FEEDBACK_MS);
   }
@@ -477,42 +481,41 @@ function resetGameTimer(){
     scheduleResolution(correct, false);
   }
 
- rollBtn.onclick = async () => {
-  if(animating) return;
-  if(overlay.classList.contains('show')) return;
+  // ====== BUTTONS ======
+  rollBtn.onclick = async () => {
+    if(animating) return;
+    if(overlay.classList.contains('show')) return;
 
-  startGameTimer();
+    startGameTimer();
 
-  const roll = 1 + Math.floor(Math.random()*6);
-  diceText.textContent = String(roll);
-  log(`🎲 Έριξες: ${roll}`);
-  await moveBy(roll, true);
-};
-
-
- resetBtn.onclick = () => {
-  resetGameTimer();
-
-  stopTrapTimer();
-  stopFeedbackTimer();
-  overlay.classList.remove('show');
-
-  rollBtn.disabled = false;
-  diceText.textContent = '—';
-  logEl.innerHTML = '';
-
-  remaining.blue = [...bankBlue.keys()];
-  remaining.green = [...bankGreen.keys()];
-  remaining.gold = [...bankGold.keys()];
-  remaining.red = [...bankRed.keys()];
-
-  player.pos = 1;
-  renderPawn();
-  log('🔄 Νέα παρτίδα!');
-};
-
+    const roll = 1 + Math.floor(Math.random()*6);
+    diceText.textContent = String(roll);
+    log(`🎲 Έριξες: ${roll}`);
+    await moveBy(roll, true);
   };
 
+  resetBtn.onclick = () => {
+    resetGameTimer();
+
+    stopTrapTimer();
+    stopFeedbackTimer();
+    overlay.classList.remove('show');
+
+    rollBtn.disabled = false;
+    diceText.textContent = '—';
+    logEl.innerHTML = '';
+
+    remaining.blue  = [...bankBlue.keys()];
+    remaining.green = [...bankGreen.keys()];
+    remaining.gold  = [...bankGold.keys()];
+    remaining.red   = [...bankRed.keys()];
+
+    player.pos = 1;
+    renderPawn();
+    log('🔄 Νέα παρτίδα!');
+  };
+
+  // init
   renderPawn();
   log('🎮 Έτοιμο! Πάτα "Ρίξε το ζάρι".');
 });
@@ -520,3 +523,4 @@ function resetGameTimer(){
 
 </body>
 </html>
+
